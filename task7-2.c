@@ -1,45 +1,47 @@
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <pthread.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
 
-int main() {
-    char *buffer;
-    int current = 0;
-    int shmid;
-    char pathname[] = "task7-1.c";
-    key_t key;
+int a = 0;
 
-    if ((key = ftok(pathname, 0)) < 0) {
-        printf("Cannot generate key\n");
+void *mythread(void *dummy)
+{
+    pthread_t mythid;
+
+    mythid = pthread_self();
+
+    a = a + 1;
+    printf("Thread %u, Calculation result = %d\n", mythid, a);
+    return NULL;
+}
+
+int main()
+{
+    pthread_t thid, mythid, secondThid;
+    int result1, result2;
+
+    // First additional thread.
+    result1 = pthread_create (&thid, (pthread_attr_t *)NULL, mythread, NULL);
+    if (result1 != 0) {
+        printf ("Error on thread create, return value = %d\n", result1);
         exit(-1);
     }
+    printf("Thread created, thid = %u\n", thid);
 
-    if ((shmid = shmget(key, 13 * sizeof(char), 0666 | IPC_CREAT)) < 0) {
-        printf("Cannot find shared memory\n");
+    // Create? second thread.
+    result2 = pthread_create (&secondThid, (pthread_attr_t *)NULL, mythread, NULL);
+    if (result2 != 0) {
+        printf ("Error on thread2 create, return value = %d\n", result2);
         exit(-1);
     }
+    printf("Thread2 created, thid2 = %u\n", secondThid);
 
-    if ((buffer = (char *) shmat(shmid, NULL, 0)) == (char *) (-1)) {
-        printf("Cannot attach shared memory\n");
-    }
+    mythid = pthread_self();
+    a = a + 1;
 
-    while (buffer[current] != '\0') {
-        printf("%c", buffer[current]);
-        current++;
-    }
-
-    if (shmdt(buffer) < 0) {
-        printf("Cannot detach shared memory\n");
-        exit(-1);
-    }
-
-    if (shmctl(shmid, 0, NULL) < 0) {
-        printf("Cannot free shared memory\n");
-        exit(-1);
-    }
+    printf("Thread %u, Calculation result = %d\n", mythid, a);
+    pthread_join(thid, (void **)NULL);
+    pthread_join(secondThid, (void **)NULL);
 
     return 0;
 }
